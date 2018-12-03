@@ -19,8 +19,11 @@ func feedFromUrls(urls []string) (RSS, error) {
 	rss := NewRSS()
 	for _, url := range urls {
 		c, err := channelFromUrl(url)
+		//fmt.Println("feedFromUrls", c, err)
 		if err == nil {
 			rss.Channels = append(rss.Channels, c)
+		} else {
+			fmt.Printf("Failed to load feed from %s\n", url)
 		}
 	}
 	return rss, nil
@@ -30,7 +33,7 @@ func channelFromUrl(url string) (Channel, error) {
 	channel := Channel{}
 	buf, err := loadUrl(url)
 	if err != nil {
-		return channel, err
+		return channel, errors.Wrapf(err, "Failed GET %s", url)
 	}
 	return getChannel(buf)
 }
@@ -45,8 +48,9 @@ func loadUrl(url string) ([]byte, error) {
 		return nil, fmt.Errorf("%s returned status code %d", url, res.StatusCode)
 	}
 	buf, err := ioutil.ReadAll(res.Body)
+	//fmt.Println("loadUrl", buf, err)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read response body")
+		return nil, errors.Wrapf(err, "Failed to read response body")
 	}
 	return buf, nil
 }

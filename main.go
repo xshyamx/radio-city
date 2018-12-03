@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
 func serveRSS(w http.ResponseWriter, r *http.Request) {
@@ -31,37 +31,30 @@ func serveRSS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setupShutdownHandler(srv *http.Server) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+func main() {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	addr := ":" + os.Getenv("PORT")
+	if addr == ":" {
+		addr = ":8080"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", serveRSS)
+	h := &http.Server{Addr: addr, Handler: mux}
+	logger := log.New(os.Stdout, "", 0)
+
 	go func() {
-		for sig := range c {
-			// sig is a ^C, handle it
-			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				if err := srv.Shutdown(nil); err != nil {
-					panic(err) // failure/timeout shutting down the server gracefully
-				}
-				return
-			}
+		logger.Printf("Listening on http://0.0.0.0%s\n", addr)
+
+		if err := h.ListenAndServe(); err != nil {
+			logger.Fatal(err)
 		}
 	}()
-}
 
-func main() {
-	log.Printf("main: starting HTTP server")
+	<-stop
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	srv := &http.Server{Addr: ":" + port}
-
-	http.HandleFunc("/", serveRSS)
-	go setupShutdownHandler(srv)
-	fmt.Printf("Server listening on :%s\n", port)
-	if err := srv.ListenAndServe(); err != nil {
-		// cannot panic, because this probably is an intentional close
-		log.Printf("Httpserver: ListenAndServe() error: %s", err)
-	}
-
+	logger.Println("\nShutting down the server...")
+	h.Shutdown(context.Background())
+	logger.Println("Server gracefully stopped")
 }

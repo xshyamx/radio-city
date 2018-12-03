@@ -1,0 +1,28 @@
+{
+	"ImportPath": "github.com/xshyamx/radio-city",
+	"GoVersion": "go1.11",
+	"GodepVersion": "v80",
+	"Packages": [
+		"."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/PuerkitoBio/goquery",
+			"Comment": "v1.4.1",
+			"Rev": "dc2ec5c7ca4d9aae063b79b9f581dd3ea6afd2b2"
+		},
+		{
+			"ImportPath": "github.com/andybalholm/cascadia",
+			"Comment": "v1.0.0",
+			"Rev": "901648c87902174f774fac311d7f176f8647bdaa"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
+			"Rev": "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
+		}
+	]
+}

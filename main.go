@@ -97,6 +97,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to retrieve any podcast configurations\n%q", err)
 	}
+	logger.Printf("Loaded %d podcast configs\n", len(podcasts))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", IndexHandler(podcasts))

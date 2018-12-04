@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"mime"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/pkg/errors"
 )
 
 func feedFromUrls(urls []string) (RSS, error) {
@@ -53,11 +57,18 @@ func getChannel(buf []byte) (Channel, error) {
 	if err != nil {
 		return channel, err
 	}
-
 	channel.Title = doc.Find("title").First().Text()
 	channel.Description = doc.Find(`.pod_desc_txt p`).First().Text()
-	channel.Link = doc.Find(`link[rel="canonical"]`).First().AttrOr("href", "")
-	channel.PublishDate = time.Now()
+	urlStr := doc.Find(`link[rel="canonical"]`).First().AttrOr("href", "")
+	if strings.HasPrefix(urlStr, "//") {
+		urlStr = "http:" + urlStr
+	}
+	channelLink, err := url.Parse(urlStr)
+	if err != nil {
+		return channel, errors.Wrapf(err, "Failed to parse url %s", urlStr)
+	}
+	channel.Link = channelLink.String()
+	channel.PublishDate = XMLDate(time.Now())
 	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
 		descStr := pi.AttrOr("data-podname", "")
@@ -83,11 +94,19 @@ func getChannel(buf []byte) (Channel, error) {
 				}
 			}
 		}
+		linkUrl, err := url.Parse(link)
+		if err != nil {
+			fmt.Printf("Failed to parse link %s", link)
+		}
 		item := Item{
 			Title:       title,
 			Description: desc,
-			Link:        link,
-			PublishDate: pd,
+			Link:        linkUrl.String(),
+			Enclosure: Enclosure{
+				URL:  linkUrl.String(),
+				Type: mime.TypeByExtension(path.Ext(link)),
+			},
+			PublishDate: XMLDate(pd),
 			GUID: GUID{
 				Value: link,
 			},

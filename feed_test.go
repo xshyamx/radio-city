@@ -31,19 +31,42 @@ func TestFeed(t *testing.T) {
 		"testdata/kck.html",
 	})
 	if err != nil {
-		t.Errorf("Failed to load feed from files")
+		t.Fatalf("Failed to load feed from files")
 	}
 	if len(rss.Channels) != 2 {
-		t.Errorf("Loaded 2 files but 2 channels not created")
+		t.Fatalf("Loaded 2 files but 2 channels not created")
 	}
 }
 
 func TestChannel(t *testing.T) {
 	c, err := channelFromFile("testdata/cd.html")
 	if err != nil {
-		t.Errorf("Failed to channel from file")
+		t.Fatalf("Failed to channel from file")
+	}
+	if c.Link == "" {
+		t.Fatalf("link must be a full and valid URL")
 	}
 	if len(c.Items) == 0 {
-		t.Errorf("No items loaded")
+		t.Fatalf("No items loaded")
+	}
+	item := c.Items[0]
+	if item.Enclosure.Type != "audio/mpeg" {
+		t.Fatalf("Enclosure has wrong type")
+	}
+}
+
+func TestFeedXML(t *testing.T) {
+	c, err := channelFromFile("testdata/cd.html")
+	if err != nil {
+		t.Fatalf("Failed to channel from file")
+	}
+	rss := NewRSS()
+	rss.Channels = []Channel{c}
+	buf, err := writeFeed(rss)
+	if err != nil {
+		t.Fatalf("Failed to write RSS feed\n%q\n", err)
+	}
+	if buf.Len() == 0 {
+		t.Fatalf("Failed to write XML")
 	}
 }

@@ -19,13 +19,14 @@ func NewRSS() RSS {
 	}
 }
 
+//https://www.radiocity.in/images/menu-images/logo.png
 type Channel struct {
-	XMLName       xml.Name  `xml:"channel"`
-	Title         string    `xml:"title"`
-	Description   string    `xml:"description"`
-	Link          string    `xml:"link"`
-	LastBuildDate time.Time `xml:"lastBuildDate,omitempty"`
-	PublishDate   time.Time `xml:"pubDate,omitempty"`
+	XMLName       xml.Name `xml:"channel"`
+	Title         string   `xml:"title"`
+	Description   string   `xml:"description"`
+	Link          string   `xml:"link"`
+	LastBuildDate XMLDate  `xml:"lastBuildDate,omitempty"`
+	PublishDate   XMLDate  `xml:"pubDate,omitempty"`
 	Items         []Item
 }
 
@@ -35,22 +36,28 @@ type Item struct {
 	Description string   `xml:"description"`
 	Link        string   `xml:"link"`
 	GUID        GUID
-	Categories  []string  `xml:"category"`
-	PublishDate time.Time `xml:"pubDate"`
+	Enclosure   Enclosure
+	Categories  []string `xml:"category"`
+	PublishDate XMLDate  `xml:"pubDate"`
 }
 
 type GUID struct {
 	XMLName   xml.Name `xml:"guid"`
 	Value     string   `xml:",chardata"`
-	PermaLink bool     `xml:"PermaLink,attr"`
+	PermaLink bool     `xml:"isPermaLink,attr"`
 }
 
-type XMLDate struct {
-	time.Time
+type Enclosure struct {
+	XMLName xml.Name `xml:"enclosure"`
+	URL     string   `xml:"url,attr"`
+	Type    string   `xml:"type,attr"`
+	Length  int      `xml:"length,attr"`
 }
 
-func (c *XMLDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	return e.EncodeElement(c.Time.Format(time.RFC1123Z), start)
+type XMLDate time.Time
+
+func (d XMLDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(time.Time(d).Format(time.RFC1123Z), start)
 }
 
 func writeFeed(rss RSS) (*bytes.Buffer, error) {

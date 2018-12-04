@@ -10,12 +10,14 @@ import (
 type RSS struct {
 	XMLName  xml.Name `xml:"rss"`
 	Version  string   `xml:"version,attr"`
+	AtomNS   string   `xml:"xmlns:atom,attr"`
 	Channels []Channel
 }
 
 func NewRSS() RSS {
 	return RSS{
 		Version: "2.0",
+		AtomNS:  "http://www.w3.org/2005/Atom",
 	}
 }
 
@@ -25,8 +27,9 @@ type Channel struct {
 	Title         string   `xml:"title"`
 	Description   string   `xml:"description"`
 	Link          string   `xml:"link"`
-	LastBuildDate XMLDate  `xml:"lastBuildDate,omitempty"`
-	PublishDate   XMLDate  `xml:"pubDate,omitempty"`
+	AtomLink      AtomLink
+	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
+	PublishDate   XMLDate `xml:"pubDate,omitempty"`
 	Items         []Item
 }
 
@@ -52,6 +55,21 @@ type Enclosure struct {
 	URL     string   `xml:"url,attr"`
 	Type    string   `xml:"type,attr"`
 	Length  int      `xml:"length,attr"`
+}
+
+type AtomLink struct {
+	XMLName xml.Name `xml:"atom:link"`
+	URL     string   `xml:"href,attr"`
+	Rel     string   `xml:"rel,attr"`
+	Type    string   `xml:"type,attr"`
+}
+
+func NewAtomLink(link string) AtomLink {
+	return AtomLink{
+		URL:  link,
+		Rel:  "self",
+		Type: "application/rss+xml",
+	}
 }
 
 type XMLDate time.Time

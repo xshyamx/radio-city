@@ -21,6 +21,10 @@ func RSSScrapeHandler(url string) http.HandlerFunc {
 			w.Write([]byte("Failed to scrape feed data"))
 			return
 		}
+		for _, channel := range rss.Channels {
+			channel.AtomLink = NewAtomLink(r.Host + r.URL.String())
+			fmt.Println(channel.AtomLink)
+		}
 		w.Header().Set("Content-Type", "application/rss+xml")
 		enc := xml.NewEncoder(w)
 		enc.Indent("", "  ")

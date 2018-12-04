@@ -72,6 +72,8 @@ func getChannel(buf []byte) (Channel, error) {
 		return channel, errors.Wrapf(err, "Failed to parse url %s", urlStr)
 	}
 	channel.Link = channelLink.String()
+	channel.AtomLink = NewAtomLink(channel.Link)
+	channel.LastBuildDate = XMLDate(time.Now())
 	channel.PublishDate = XMLDate(time.Now())
 	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {

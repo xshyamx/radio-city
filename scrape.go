@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -69,17 +70,30 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 				}
 			}
 		}
+		length := 0
 		linkUrl, err := url.Parse(link)
 		if err != nil {
 			fmt.Printf("Failed to parse link %s", link)
 		}
+		if link != "" {
+			res, err := http.Head(linkUrl.String())
+			if err != nil {
+				fmt.Printf("Failed to load media url %s\n%q\n", link, err)
+			}
+			if res.StatusCode == http.StatusOK {
+				ls := res.Header.Get("Content-Length")
+				length, _ = strconv.Atoi(ls)
+			}
+		}
+
 		item := Item{
 			Title:       title,
 			Description: desc,
 			Link:        linkUrl.String(),
 			Enclosure: Enclosure{
-				URL:  linkUrl.String(),
-				Type: mime.TypeByExtension(path.Ext(link)),
+				URL:    linkUrl.String(),
+				Type:   mime.TypeByExtension(path.Ext(link)),
+				Length: length,
 			},
 			PublishDate: XMLDate(pd),
 			GUID: GUID{

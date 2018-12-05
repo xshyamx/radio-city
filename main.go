@@ -27,9 +27,9 @@ func RSSScrapeHandler(podcast Podcast, builder FeedBuilder) http.HandlerFunc {
 	var lastBuildDate XMLDate
 	return func(w http.ResponseWriter, r *http.Request) {
 		reload := r.URL.Query().Get("refresh") == "true"
-		fmt.Println("reload", reload)
+		//fmt.Println("reload", reload)
 		if reload || rss.Version == "" {
-			fmt.Println("reloading...")
+			//fmt.Println("reloading...")
 			if !time.Time(rss.Channel.PublishDate).IsZero() {
 				lastBuildDate = rss.Channel.PublishDate
 			}

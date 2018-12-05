@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -22,13 +23,34 @@ func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
 }
 
 func RSSScrapeHandler(podcast Podcast, builder FeedBuilder) http.HandlerFunc {
+	var rss RSS
+	var lastBuildDate XMLDate
 	return func(w http.ResponseWriter, r *http.Request) {
-		selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
-		rss, err := builder(podcast, selfLink)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Failed to build RSS feed"))
-			return
+		reload := r.URL.Query().Get("refresh") == "true"
+		fmt.Println("reload", reload)
+		if reload || rss.Version == "" {
+			fmt.Println("reloading...")
+			if !time.Time(rss.Channel.PublishDate).IsZero() {
+				lastBuildDate = rss.Channel.PublishDate
+			}
+			selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
+			var err error
+			rss, err = builder(podcast, selfLink)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Failed to build RSS feed"))
+				return
+			}
+			if !time.Time(lastBuildDate).IsZero() {
+				rss.Channel.LastBuildDate = lastBuildDate
+			}
+			// expire value after 1 day
+			timer := time.NewTimer(24 * time.Hour)
+			go func() {
+				<-timer.C
+				rss.Version = ""
+			}()
+
 		}
 		w.Header().Set("Content-Type", "application/rss+xml")
 		enc := xml.NewEncoder(w)

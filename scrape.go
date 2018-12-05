@@ -21,7 +21,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 	if err != nil {
 		return channel, err
 	}
-	channel.Title = doc.Find("title").First().Text()
+	channel.Title = doc.Find(".pod_desc_txt h1").First().Text()
 	channel.Description = doc.Find(`.pod_desc_txt p`).First().Text()
 	urlStr := doc.Find(`link[rel="canonical"]`).First().AttrOr("href", "")
 	if strings.HasPrefix(urlStr, "//") {
@@ -119,3 +119,5 @@ func loadUrl(url string) ([]byte, error) {
 	}
 	return buf, nil
 }
+
+type FeedBuilder func(Podcast, AtomLink) (RSS, error)

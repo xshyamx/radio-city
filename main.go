@@ -14,15 +14,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-func RSSScrapeHandler(podcast Podcast) http.HandlerFunc {
+func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
+	rss := NewRSS()
+	var err error
+	rss.Channel, err = scrapeChannel(podcast, selfLink)
+	return rss, err
+}
+
+func RSSScrapeHandler(podcast Podcast, builder FeedBuilder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
-		rss := NewRSS()
-		var err error
-		rss.Channel, err = scrapeChannel(podcast, selfLink)
+		rss, err := builder(podcast, selfLink)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Failed to scrape feed data"))
+			w.Write([]byte("Failed to build RSS feed"))
 			return
 		}
 		w.Header().Set("Content-Type", "application/rss+xml")
@@ -101,7 +106,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", IndexHandler(podcasts))
 	for _, podcast := range podcasts {
-		mux.HandleFunc(podcast.Path, RSSScrapeHandler(podcast))
+		mux.HandleFunc(podcast.Path, RSSScrapeHandler(podcast, buildFeed))
 	}
 	h := &http.Server{Addr: addr, Handler: mux}
 

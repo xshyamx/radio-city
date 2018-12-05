@@ -5,6 +5,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -41,6 +44,16 @@ func loadPodcasts() ([]Podcast, error) {
 		return podcasts, errors.Wrapf(err, "Failed to read ")
 	}
 	return podcasts, nil
+}
+
+func testBuilder(podcast Podcast) FeedBuilder {
+	htmlFile, ok := configMap[podcast.Path]
+	if !ok {
+		fmt.Printf("Failed to find htmlFile for %s\n", podcast.Path)
+	}
+	return func(podcast Podcast, selfLink AtomLink) (RSS, error) {
+		return feedFromFile(podcast, htmlFile)
+	}
 }
 
 func validateSelfLink(selfLink AtomLink, t *testing.T) {
@@ -117,5 +130,70 @@ func TestFeed(t *testing.T) {
 		t.Fatalf("Failed scrape podcast info\n%q", err)
 	}
 	validateFeed(rss, t)
+
+}
+
+func TestIndex(t *testing.T) {
+	podcasts, err := loadPodcasts()
+	if err != nil {
+		t.Fatalf("Failed to load podcasts\n%q", err)
+	}
+	r := httptest.NewRequest("GET", "http://localhost:8080", nil)
+	w := httptest.NewRecorder()
+	IndexHandler(podcasts)(w, r)
+	res := w.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Did not respond with success")
+	}
+	contentType := res.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "text/html") {
+		t.Errorf("Expected 'text/html' mime type but got %s", contentType)
+	}
+	body, _ := ioutil.ReadAll(res.Body)
+	if len(body) == 0 {
+		t.Fatalf("Response was empty")
+	}
+}
+
+func testPodcast(t *testing.T) {
+	url := "http://localhost:8080/cd"
+	r := httptest.NewRequest("GET", url, nil)
+	w := httptest.NewRecorder()
+	RSSScrapeHandler(podcasts[0], testBuilder(podcasts[0]))(w, r)
+	res := w.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("Did not respond with success")
+	}
+	contentType := res.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "application/rss+xml") {
+		t.Errorf("Expected 'text/html' mime type but got %s", contentType)
+	}
+	body, _ := ioutil.ReadAll(res.Body)
+	if len(body) == 0 {
+		t.Fatalf("Response was empty")
+	}
+	// get linkUrl using string manipulation as go will fail to unmarshal namespaced elements
+	xmlStr := string(body)
+	start, end := strings.Index(xmlStr, "<link>"), strings.Index(xmlStr, "</link>")
+	var linkUrl string
+	if start < end && start != -1 {
+		linkUrl = xmlStr[start+len("<link>") : end]
+	}
+	var rss RSS
+	if err := xml.Unmarshal(body, &rss); err != nil {
+		t.Fatalf("Failed to unmarshal feed xml\n%q", err)
+	}
+	// fix up the namespaced elments
+	rss.AtomNS = NewRSS().AtomNS
+	rss.Channel.AtomLink = NewAtomLink(url)
+	rss.Channel.Link = linkUrl
+	validateFeed(rss, t)
+}
+
+func TestRSS(t *testing.T) {
+	podcasts, err := loadPodcasts()
+	if err != nil {
+		t.Fatalf("Failed to load podcasts\n%q", err)
+	}
 
 }

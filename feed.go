@@ -5,6 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type RSS struct {
@@ -31,14 +33,13 @@ type Channel struct {
 	Image         Image
 	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
 	PublishDate   XMLDate `xml:"pubDate,omitempty"`
-	Items         []Item
+	Items         []Item  `xml:"item"`
 }
 
 type Item struct {
-	XMLName     xml.Name `xml:"item"`
-	Title       string   `xml:"title"`
-	Description string   `xml:"description"`
-	Link        string   `xml:"link"`
+	Title       string `xml:"title"`
+	Description string `xml:"description"`
+	Link        string `xml:"link"`
 	GUID        GUID
 	Enclosure   Enclosure
 	Categories  []string `xml:"category"`
@@ -84,6 +85,19 @@ type XMLDate time.Time
 
 func (d XMLDate) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return e.EncodeElement(time.Time(d).Format(time.RFC1123Z), start)
+}
+
+func (dd *XMLDate) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var xmlStr string
+	if err := d.DecodeElement(&xmlStr, &start); err != nil {
+		return err
+	}
+	dt, err := time.Parse(time.RFC1123Z, xmlStr)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to parse %s as RFC1123Z date", xmlStr)
+	}
+	*dd = XMLDate(dt)
+	return nil
 }
 
 func writeFeed(rss RSS) (*bytes.Buffer, error) {

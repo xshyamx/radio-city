@@ -8,10 +8,10 @@ import (
 )
 
 type RSS struct {
-	XMLName  xml.Name `xml:"rss"`
-	Version  string   `xml:"version,attr"`
-	AtomNS   string   `xml:"xmlns:atom,attr"`
-	Channels []Channel
+	XMLName xml.Name `xml:"rss"`
+	Version string   `xml:"version,attr"`
+	AtomNS  string   `xml:"xmlns:atom,attr"`
+	Channel Channel
 }
 
 func NewRSS() RSS {
@@ -28,6 +28,7 @@ type Channel struct {
 	Description   string   `xml:"description"`
 	Link          string   `xml:"link"`
 	AtomLink      AtomLink
+	Image         Image
 	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
 	PublishDate   XMLDate `xml:"pubDate,omitempty"`
 	Items         []Item
@@ -55,6 +56,13 @@ type Enclosure struct {
 	URL     string   `xml:"url,attr"`
 	Type    string   `xml:"type,attr"`
 	Length  int      `xml:"length,attr"`
+}
+
+type Image struct {
+	XMLName xml.Name `xml:"image"`
+	Link    string   `xml:"link"`
+	URL     string   `xml:"url"`
+	Title   string   `xml:"title"`
 }
 
 type AtomLink struct {

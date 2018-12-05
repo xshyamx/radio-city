@@ -14,18 +14,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func RSSScrapeHandler(url string) http.HandlerFunc {
+func RSSScrapeHandler(podcast Podcast) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rss, err := feedFromUrls([]string{
-			url,
-		})
+		selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
+		rss := NewRSS()
+		var err error
+		rss.Channel, err = scrapeChannel(podcast, selfLink)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Failed to scrape feed data"))
 			return
-		}
-		for i, _ := range rss.Channels {
-			rss.Channels[i].AtomLink = NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
 		}
 		w.Header().Set("Content-Type", "application/rss+xml")
 		enc := xml.NewEncoder(w)
@@ -64,9 +62,10 @@ func IndexHandler(podcasts []Podcast) http.HandlerFunc {
 }
 
 type Podcast struct {
-	Path string `json:"prefix"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Path       string   `json:"prefix"`
+	Name       string   `json:"name"`
+	URL        string   `json:"url"`
+	Categories []string `json:"categories"`
 }
 
 func getPodcasts() ([]Podcast, error) {
@@ -102,7 +101,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", IndexHandler(podcasts))
 	for _, podcast := range podcasts {
-		mux.HandleFunc(podcast.Path, RSSScrapeHandler(podcast.URL))
+		mux.HandleFunc(podcast.Path, RSSScrapeHandler(podcast))
 	}
 	h := &http.Server{Addr: addr, Handler: mux}
 

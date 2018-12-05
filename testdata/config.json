@@ -1,0 +1,22 @@
+[
+  {
+    "prefix": "/cd",
+    "name": "Crime Diary",
+    "url": "https://www.radiocity.in/radiocity/show-podcasts-tamil/Crime-Diary/153",
+    "imageUrl": "https://www.radiocity.in/images/menu-images/logo.png",
+    "categories":[
+      "crime",
+      "podcast"
+    ]
+  },
+  {
+    "prefix": "/kck",
+    "name": "Kissa Crime Ka",
+    "url": "https://www.radiocity.in/radiocity/show-podcasts-hindi/Kissa-Crime-Ka/82",
+    "imageUrl": "https://www.radiocity.in/images/menu-images/logo.png",
+    "categories":[
+      "crime",
+      "podcast"
+    ]
+  }
+]

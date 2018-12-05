@@ -15,47 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func feedFromUrls(urls []string) (RSS, error) {
-	rss := NewRSS()
-	for _, url := range urls {
-		c, err := channelFromUrl(url)
-		//fmt.Println("feedFromUrls", c, err)
-		if err == nil {
-			rss.Channels = append(rss.Channels, c)
-		} else {
-			fmt.Printf("Failed to load feed from %s\n", url)
-		}
-	}
-	return rss, nil
-}
-
-func channelFromUrl(url string) (Channel, error) {
-	channel := Channel{}
-	buf, err := loadUrl(url)
-	if err != nil {
-		return channel, errors.Wrapf(err, "Failed GET %s", url)
-	}
-	return getChannel(buf)
-}
-
-func loadUrl(url string) ([]byte, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("%s returned status code %d", url, res.StatusCode)
-	}
-	buf, err := ioutil.ReadAll(res.Body)
-	//fmt.Println("loadUrl", buf, err)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to read response body")
-	}
-	return buf, nil
-}
-
-func getChannel(buf []byte) (Channel, error) {
+func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error) {
 	channel := Channel{}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
@@ -72,9 +32,18 @@ func getChannel(buf []byte) (Channel, error) {
 		return channel, errors.Wrapf(err, "Failed to parse url %s", urlStr)
 	}
 	channel.Link = channelLink.String()
-	channel.AtomLink = NewAtomLink(channel.Link)
+	channel.AtomLink = selfLink
 	channel.LastBuildDate = XMLDate(time.Now())
 	channel.PublishDate = XMLDate(time.Now())
+
+	if imgUrl, ok := doc.Find(".pod_desc_img img").First().Attr("src"); ok {
+		channel.Image = Image{
+			Title: channel.Title,
+			Link:  channel.Link,
+			URL:   imgUrl,
+		}
+	}
+
 	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
 		descStr := pi.AttrOr("data-podname", "")
@@ -116,14 +85,37 @@ func getChannel(buf []byte) (Channel, error) {
 			GUID: GUID{
 				Value: link,
 			},
-			Categories: []string{
-				"podcast",
-				"crime",
-			},
+			Categories: podcast.Categories,
 		}
 		if item.Description != "" && item.Link != "" {
 			channel.Items = append(channel.Items, item)
 		}
 	})
 	return channel, nil
+}
+
+func scrapeChannel(podcast Podcast, selfLink AtomLink) (Channel, error) {
+	channel := Channel{}
+	buf, err := loadUrl(podcast.URL)
+	if err != nil {
+		return channel, errors.Wrap(err, "Failed to load podcast url")
+	}
+	return getChannel(podcast, selfLink, buf)
+}
+
+func loadUrl(url string) ([]byte, error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("%s returned status code %d", url, res.StatusCode)
+	}
+	buf, err := ioutil.ReadAll(res.Body)
+	//fmt.Println("loadUrl", buf, err)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to read response body")
+	}
+	return buf, nil
 }

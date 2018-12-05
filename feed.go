@@ -23,7 +23,6 @@ func NewRSS() RSS {
 	}
 }
 
-//https://www.radiocity.in/images/menu-images/logo.png
 type Channel struct {
 	XMLName       xml.Name `xml:"channel"`
 	Title         string   `xml:"title"`

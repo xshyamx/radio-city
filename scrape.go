@@ -32,16 +32,20 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 	if err != nil {
 		return channel, errors.Wrapf(err, "Failed to parse url %s", urlStr)
 	}
-	channel.Link = channelLink.String()
+	channel.Link = URL(*channelLink)
 	channel.AtomLink = selfLink
 	channel.LastBuildDate = XMLDate(time.Now())
 	channel.PublishDate = XMLDate(time.Now())
 
 	if imgUrl, ok := doc.Find(".pod_desc_img img").First().Attr("src"); ok {
+		img, err := url.Parse(imgUrl)
+		if err != nil {
+			return channel, errors.Wrapf(err, "Failed to parse image url %s", imgUrl)
+		}
 		channel.Image = Image{
 			Title: channel.Title,
 			Link:  channel.Link,
-			URL:   imgUrl,
+			URL:   URL(*img),
 		}
 	}
 
@@ -71,7 +75,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 			}
 		}
 		length := 0
-		linkUrl, err := url.Parse(link)
+		linkUrl, err := parseURL(link)
 		if err != nil {
 			fmt.Printf("Failed to parse link %s", link)
 		}
@@ -89,9 +93,9 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 		item := Item{
 			Title:       title,
 			Description: desc,
-			Link:        linkUrl.String(),
+			Link:        linkUrl,
 			Enclosure: Enclosure{
-				URL:    linkUrl.String(),
+				URL:    linkUrl,
 				Type:   mime.TypeByExtension(path.Ext(link)),
 				Length: length,
 			},
@@ -101,7 +105,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 			},
 			Categories: podcast.Categories,
 		}
-		if item.Description != "" && item.Link != "" {
+		if item.Description != "" && item.Link.RequestURI() != "" {
 			channel.Items = append(channel.Items, item)
 		}
 	})

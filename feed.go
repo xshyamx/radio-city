@@ -54,8 +54,8 @@ type GUID struct {
 
 type Enclosure struct {
 	XMLName xml.Name `xml:"enclosure"`
-	URL     URL      `xml:"url,attr"`
 	Type    string   `xml:"type,attr"`
+	URL     URL      `xml:"url,attr"`
 	Length  int      `xml:"length,attr"`
 }
 

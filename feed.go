@@ -26,24 +26,24 @@ func NewRSS() RSS {
 
 type Channel struct {
 	XMLName       xml.Name `xml:"channel"`
-	Title         string   `xml:"title"`
-	Description   string   `xml:"description"`
-	Link          URL      `xml:"link"`
 	AtomLink      AtomLink
-	Image         Image
-	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
+	Title         string  `xml:"title"`
+	Link          URL     `xml:"link"`
 	PublishDate   XMLDate `xml:"pubDate,omitempty"`
-	Items         []Item  `xml:"item"`
+	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
+	Description   string  `xml:"description"`
+	Image         Image
+	Items         []Item `xml:"item"`
 }
 
 type Item struct {
-	Title       string `xml:"title"`
-	Description string `xml:"description"`
-	Link        URL    `xml:"link"`
 	GUID        GUID
+	Title       string  `xml:"title"`
+	PublishDate XMLDate `xml:"pubDate"`
+	Link        URL     `xml:"link"`
+	Description string  `xml:"description"`
 	Enclosure   Enclosure
 	Categories  []string `xml:"category"`
-	PublishDate XMLDate  `xml:"pubDate"`
 }
 
 type GUID struct {

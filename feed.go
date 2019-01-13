@@ -11,16 +11,18 @@ import (
 )
 
 type RSS struct {
-	XMLName xml.Name `xml:"rss"`
-	Version string   `xml:"version,attr"`
-	AtomNS  string   `xml:"xmlns:atom,attr"`
-	Channel Channel
+	XMLName  xml.Name `xml:"rss"`
+	Version  string   `xml:"version,attr"`
+	AtomNS   string   `xml:"xmlns:atom,attr"`
+	ItunesNS string   `xml:"xmlns:itunes,attr"`
+	Channel  Channel
 }
 
 func NewRSS() RSS {
 	return RSS{
-		Version: "2.0",
-		AtomNS:  "http://www.w3.org/2005/Atom",
+		Version:  "2.0",
+		AtomNS:   "http://www.w3.org/2005/Atom",
+		ItunesNS: "http://www.itunes.com/dtds/podcast-1.0.dtd",
 	}
 }
 
@@ -33,6 +35,7 @@ type Channel struct {
 	LastBuildDate XMLDate `xml:"lastBuildDate,omitempty"`
 	Description   string  `xml:"description"`
 	Image         Image
+	ItunesImage   ItunesImage
 	Items         []Item `xml:"item"`
 }
 
@@ -43,6 +46,7 @@ type Item struct {
 	Link        URL     `xml:"link"`
 	Description string  `xml:"description"`
 	Enclosure   Enclosure
+	ItunesImage ItunesImage
 	Categories  []string `xml:"category"`
 }
 
@@ -64,6 +68,11 @@ type Image struct {
 	Link    URL      `xml:"link"`
 	URL     URL      `xml:"url"`
 	Title   string   `xml:"title"`
+}
+
+type ItunesImage struct {
+	XMLName xml.Name `xml:"itunes:image"`
+	URL     URL      `xml:"href,attr"`
 }
 
 type AtomLink struct {

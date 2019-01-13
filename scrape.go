@@ -47,6 +47,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 			Link:  channel.Link,
 			URL:   URL(*img),
 		}
+		channel.ItunesImage = ItunesImage{URL: channel.Image.URL}
 	}
 
 	IST, _ := time.LoadLocation("Asia/Kolkata")
@@ -99,6 +100,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 				Type:   mime.TypeByExtension(path.Ext(link)),
 				Length: length,
 			},
+			ItunesImage: ItunesImage{URL: channel.Image.URL},
 			PublishDate: XMLDate(pd),
 			GUID: GUID{
 				Value: link,

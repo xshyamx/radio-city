@@ -58,7 +58,7 @@ func testBuilder(podcast Podcast) FeedBuilder {
 }
 
 func validateSelfLink(selfLink AtomLink, t *testing.T) {
-	if selfLink.URL == "" {
+	if selfLink.URL.Scheme == "" {
 		t.Errorf("Channel must have a non-empty self link")
 	}
 	if selfLink.Rel != "self" {
@@ -77,13 +77,16 @@ func validateFeed(rss RSS, t *testing.T) {
 	if channel.Title == "" {
 		t.Errorf("Channel must have a non-emtpy title")
 	}
-	if channel.Link == "" {
+	if channel.Link.Scheme == "" {
 		t.Errorf("Channel must have a non-empty link")
 	}
-	if channel.Image.URL == "" {
+	if channel.Image.URL.Scheme == "" {
 		t.Errorf("Channel image url must be a non-empty string")
 	}
 	validateSelfLink(channel.AtomLink, t)
+	if channel.ItunesImage.URL.Scheme == "" {
+		t.Errorf("Channel itunes image url must be a non-empty string")
+	}
 	if len(channel.Items) == 0 {
 		t.Errorf("Channel must have at least one item")
 	}
@@ -95,14 +98,17 @@ func validateItem(item Item, t *testing.T) {
 	if item.Title == "" {
 		t.Errorf("Item must have a non-empty title")
 	}
-	if item.Link == "" {
+	if item.Link.Scheme == "" {
 		t.Errorf("Item must have a non-empty link")
 	}
-	if item.Enclosure.URL == "" {
+	if item.Enclosure.URL.Scheme == "" {
 		t.Errorf("Item enclosure must have a non-empty href")
 	}
 	if len(item.Categories) == 0 {
 		t.Errorf("Item must have atleast one category")
+	}
+	if item.ItunesImage.URL.Scheme == "" {
+		t.Errorf("Itunes image must have a non-empty href")
 	}
 }
 
@@ -190,14 +196,29 @@ func testPodcast(podcast Podcast, t *testing.T) func(*testing.T) {
 		if start < end && start != -1 {
 			linkUrl = xmlStr[start+len("<link>") : end]
 		}
+		pUrl, err := parseURL(linkUrl)
+		if err != nil {
+			t.Fatalf("Failed to parse url %s\n%q", linkUrl, err)
+		}
 		var rss RSS
 		if err := xml.Unmarshal(body, &rss); err != nil {
 			t.Fatalf("Failed to unmarshal feed xml\n%q", err)
 		}
+		imgUrl, err := parseURL(podcast.Image)
+		if err != nil {
+			t.Fatalf("Failed to parse url %s\n%q", linkUrl, err)
+		}
 		// fix up the namespaced elments
 		//    rss.AtomNS = NewRSS().AtomNS
 		rss.Channel.AtomLink = NewAtomLink(url)
-		rss.Channel.Link = linkUrl
+		rss.Channel.ItunesImage.URL = imgUrl
+		for i, _ := range rss.Channel.Items {
+			rss.Channel.Items[i].ItunesImage.URL = imgUrl
+		}
+		if rss.Channel.ItunesImage.URL.String() != podcast.Image {
+			t.Errorf("Channel itunes image %s does match %s", rss.Channel.ItunesImage.URL.String(), podcast.Image)
+		}
+		rss.Channel.Link = pUrl
 		validateFeed(rss, t)
 	}
 }

@@ -33,7 +33,11 @@ func RSSScrapeHandler(podcast Podcast, builder FeedBuilder) http.HandlerFunc {
 			if !time.Time(rss.Channel.PublishDate).IsZero() {
 				lastBuildDate = rss.Channel.PublishDate
 			}
-			selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", r.Header.Get("X-Forwarded-Proto"), r.Host, r.URL.String()))
+			proto := r.Header.Get("X-Forwarded-Proto")
+			if proto == "" {
+				proto = "http"
+			}
+			selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", proto, r.Host, r.URL.Path))
 			var err error
 			rss, err = builder(podcast, selfLink)
 			if err != nil {
@@ -92,6 +96,7 @@ type Podcast struct {
 	Path       string   `json:"prefix"`
 	Name       string   `json:"name"`
 	URL        string   `json:"url"`
+	Image      string   `json:"imageUrl"`
 	Categories []string `json:"categories"`
 }
 

@@ -23,6 +23,8 @@ func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
 }
 
 func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
+	logger := log.New(os.Stdout, "[main] ", 0)
+	start := time.Now()
 	masterImage := "https://www.radiocity.in/images/menu-images/logo.png"
 	imgUrl, err := parseURL(masterImage)
 	if err != nil {
@@ -53,6 +55,7 @@ func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
 		}
 		rss.Channel.Items = append(rss.Channel.Items, pitems...)
 	}
+	logger.Printf("Master feed generated in %s\n", time.Since(start).String())
 	return rss, err
 }
 
@@ -195,7 +198,7 @@ func getPodcasts() ([]Podcast, error) {
 }
 
 func main() {
-	logger := log.New(os.Stdout, "", 0)
+	logger := log.New(os.Stdout, "[main] ", 0)
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	addr := ":" + os.Getenv("PORT")

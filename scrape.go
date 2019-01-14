@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -16,9 +18,35 @@ import (
 	"github.com/pkg/errors"
 )
 
+func getEnclosure(in <-chan Item, out chan<- Item, errs chan<- error, done chan<- bool) {
+	logger := log.New(os.Stdout, "[scrape][enclosure] ", 0)
+	for item := range in {
+		start := time.Now()
+		res, err := http.Head(item.Link.String())
+		if err != nil {
+			errs <- errors.Wrapf(err, "Failed to load media url %s", item.Link.String())
+		}
+		length := 0
+		if res.StatusCode == http.StatusOK {
+			ls := res.Header.Get("Content-Length")
+			length, _ = strconv.Atoi(ls)
+		}
+		item.Enclosure = Enclosure{
+			URL:    item.Link,
+			Type:   mime.TypeByExtension(path.Ext(item.Link.Path)),
+			Length: length,
+		}
+		logger.Printf("Loaded enclosure in %s", time.Since(start).String())
+		out <- item
+	}
+	done <- true
+}
+
 // extractItems extracts a list of items from a parsed document
 func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Item, error) {
 	var items []Item
+	logger := log.New(os.Stdout, "[scrape][item] ", 0)
+	start := time.Now()
 	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
 		descStr := pi.AttrOr("data-podname", "")
@@ -44,31 +72,15 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 				}
 			}
 		}
-		length := 0
 		linkUrl, err := parseURL(link)
 		if err != nil {
 			fmt.Printf("Failed to parse link %s", link)
-		}
-		if link != "" {
-			res, err := http.Head(linkUrl.String())
-			if err != nil {
-				fmt.Printf("Failed to load media url %s\n%q\n", link, err)
-			}
-			if res.StatusCode == http.StatusOK {
-				ls := res.Header.Get("Content-Length")
-				length, _ = strconv.Atoi(ls)
-			}
 		}
 
 		item := Item{
 			Title:       title,
 			Description: desc,
 			Link:        linkUrl,
-			Enclosure: Enclosure{
-				URL:    linkUrl,
-				Type:   mime.TypeByExtension(path.Ext(linkUrl.Path)),
-				Length: length,
-			},
 			ItunesImage: ItunesImage{URL: imgUrl},
 			PublishDate: XMLDate(pd),
 			GUID: GUID{
@@ -80,12 +92,48 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 			items = append(items, item)
 		}
 	})
+	logger.Printf("Item parsing completed in %s\n", time.Since(start).String())
+	in := make(chan Item)
+	out := make(chan Item)
+	errs := make(chan error)
+	done := make(chan bool)
+	doneCount, workerCount := 0, 3
+	for i := 0; i < workerCount; i++ {
+		go getEnclosure(in, out, errs, done)
+	}
+	go func() {
+		for _, item := range items {
+			in <- item
+		}
+		close(in)
+	}()
+	var eItems []Item
+	for {
+		select {
+		case item, more := <-out:
+			if more {
+				eItems = append(eItems, item)
+			} else {
+				logger.Printf("Item enclosures completed in %s\n", time.Since(start).String())
+				return eItems, nil
+			}
+		case <-done:
+			doneCount++
+			if doneCount >= workerCount {
+				close(out)
+			}
+		case err := <-errs:
+			return items, err
+		}
+	}
 	return items, nil
 }
 
 // getChannel builds a channel from scraped podcast url buffer
 func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error) {
 	channel := Channel{}
+	start := time.Now()
+	logger := log.New(os.Stdout, "[scrape][channel] ", 0)
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return channel, err
@@ -117,9 +165,12 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 		}
 		channel.ItunesImage = ItunesImage{URL: channel.Image.URL}
 	}
+	logger.Printf("Scraped channel info in %s\n", time.Since(start).String())
 	if channel.Items, err = extractItems(doc, channel.Image.URL, podcast.Categories); err != nil {
+		logger.Printf("Scraped channel items in %s\n", time.Since(start).String())
 		return channel, err
 	}
+
 	return channel, nil
 }
 
@@ -140,10 +191,14 @@ func getItems(podcast Podcast, buf []byte) ([]Item, error) {
 // scrapeChannel builds a new channel with the items scraped from the podcast
 func scrapeChannel(podcast Podcast, selfLink AtomLink) (Channel, error) {
 	channel := Channel{}
+	logger := log.New(os.Stdout, "[scrape] ", 0)
+	start := time.Now()
 	buf, err := loadUrl(podcast.URL)
 	if err != nil {
 		return channel, errors.Wrap(err, "Failed to load podcast url")
 	}
+	duration := time.Since(start)
+	logger.Printf("Loaded %s in %s\n", podcast.Name, duration.String())
 	return getChannel(podcast, selfLink, buf)
 }
 

@@ -66,7 +66,7 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 			Link:        linkUrl,
 			Enclosure: Enclosure{
 				URL:    linkUrl,
-				Type:   mime.TypeByExtension(path.Ext(link)),
+				Type:   mime.TypeByExtension(path.Ext(linkUrl.Path)),
 				Length: length,
 			},
 			ItunesImage: ItunesImage{URL: imgUrl},

@@ -48,15 +48,31 @@ func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
 			URL: imgUrl,
 		},
 	}
+	count := len(podcasts)
+	total := count
+	done := make(chan bool)
 	for _, pod := range podcasts {
-		pitems, err := scrapeItems(pod)
-		if err != nil {
-			return rss, err
-		}
-		rss.Channel.Items = append(rss.Channel.Items, pitems...)
+		go func(pod Podcast) {
+			pitems, err := scrapeItems(pod)
+			if err != nil {
+				logger.Printf("Failed to scrape items\n%+q", err)
+			} else {
+				rss.Channel.Items = append(rss.Channel.Items, pitems...)
+			}
+			done <- true
+		}(pod)
 	}
-	logger.Printf("Master feed generated in %s\n", time.Since(start).String())
-	return rss, err
+	for {
+		select {
+		case <-done:
+			count--
+			logger.Printf("Completed %d of %d", count, total)
+			if count == 0 {
+				logger.Printf("Master feed generated in %s\n", time.Since(start).String())
+				return rss, err
+			}
+		}
+	}
 }
 
 func MasterScrapeHandler(podcasts []Podcast, builder MasterFeedBuilder) http.HandlerFunc {

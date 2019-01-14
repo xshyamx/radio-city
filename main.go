@@ -22,6 +22,83 @@ func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
 	return rss, err
 }
 
+func buildMasterFeed(podcasts []Podcasts, selfLink AtomLink) (RSS, error) {
+	imgUrl, err := parseURL("https://www.radiocity.in/images/menu-images/logo.png")
+	if err != nil {
+		fmt.Printf("Failed to parse image url %s", podcast.Image)
+	}
+	rss := NewRSS()
+
+	rss.Channel = Channel{
+		AtomLink:      selfLink,
+		Title:         "RadioCity Master Feed",
+		Link:          selfLink.URL,
+		PublishDate:   time.Now(),
+		LastBuildDate: time.Now(),
+		Description:   "Generated master feed from a given set of podcasts",
+		Image: Image{
+			Link:  selfLink.URL,
+			Title: "RadioCity Master Feed",
+			URL:   imgUrl,
+		},
+		ItunesImage: ItunesImage{
+			URL: imgUrl,
+		},
+	}
+	var err error
+	for pod, _ := range podcasts {
+		pitems, err = scrapeItems(pod)
+		if err != nil {
+			return rss, err
+		}
+		rss.Channel.Items = append(rss.Channel.Items, pitems)
+	}
+	return rss, err
+}
+
+func MasterScrapeHandler(podcasts []Podcast, builder FeedBuilder) http.HandlerFunc {
+	var rss RSS
+	var lastBuildDate XMLDate
+	return func(w http.ResponseWriter, r *http.Request) {
+		reload := r.URL.Query().Get("refresh") == "true"
+		//fmt.Println("reload", reload)
+		if reload || rss.Version == "" {
+			//fmt.Println("reloading...")
+			if !time.Time(rss.Channel.PublishDate).IsZero() {
+				lastBuildDate = rss.Channel.PublishDate
+			}
+			proto := r.Header.Get("X-Forwarded-Proto")
+			if proto == "" {
+				proto = "http"
+			}
+			selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", proto, r.Host, r.URL.Path))
+			var err error
+			rss, err = builder(podcast, selfLink)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Failed to build RSS feed"))
+				return
+			}
+			if !time.Time(lastBuildDate).IsZero() {
+				rss.Channel.LastBuildDate = lastBuildDate
+			}
+			// expire value after 1 day
+			timer := time.NewTimer(24 * time.Hour)
+			go func() {
+				<-timer.C
+				rss.Version = ""
+			}()
+
+		}
+		w.Header().Set("Content-Type", "application/rss+xml")
+		enc := xml.NewEncoder(w)
+		enc.Indent("", "  ")
+		if err := enc.Encode(rss); err != nil {
+			fmt.Printf("error: %v\n", err)
+		}
+	}
+}
+
 func RSSScrapeHandler(podcast Podcast, builder FeedBuilder) http.HandlerFunc {
 	var rss RSS
 	var lastBuildDate XMLDate
@@ -75,6 +152,7 @@ func IndexHandler(podcasts []Podcast) http.HandlerFunc {
   <body>
     <h1>RadioCity Podcasts</h1>
     <ul>
+      <li><a href="/master">Master Feed</a></li>
       {{ range . }}
       <li><a href="{{.Path}}">{{.Name}}</a></li>
       {{ end }}
@@ -135,6 +213,7 @@ func main() {
 	for _, podcast := range podcasts {
 		mux.HandleFunc(podcast.Path, RSSScrapeHandler(podcast, buildFeed))
 	}
+	mux.HandleFunc("/master", MasterScrapeHandler(podcasts, buildMasterFeed))
 	h := &http.Server{Addr: addr, Handler: mux}
 
 	go func() {

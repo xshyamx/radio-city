@@ -38,9 +38,9 @@ func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
 		LastBuildDate: XMLDate(time.Now()),
 		Description:   "Generated master feed from a given set of podcasts",
 		Image: Image{
-			Link:  selfLink.URL,
+			Link:  imgUrl,
 			Title: "RadioCity Master Feed",
-			URL:   imgUrl,
+			URL:   selfLink.URL,
 		},
 		ItunesImage: ItunesImage{
 			URL: imgUrl,

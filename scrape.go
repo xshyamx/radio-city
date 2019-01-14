@@ -17,7 +17,7 @@ import (
 )
 
 // extractItems extracts a list of items from a parsed document
-func extractItems(doc *goquery.Document, imgUrl URL) ([]Item, error) {
+func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Item, error) {
 	var items []Item
 	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
@@ -59,10 +59,6 @@ func extractItems(doc *goquery.Document, imgUrl URL) ([]Item, error) {
 				length, _ = strconv.Atoi(ls)
 			}
 		}
-		imgUrl, err := parseURL(podcast.Image)
-		if err != nil {
-			fmt.Printf("Failed to parse image url %s", podcast.Image)
-		}
 
 		item := Item{
 			Title:       title,
@@ -78,7 +74,7 @@ func extractItems(doc *goquery.Document, imgUrl URL) ([]Item, error) {
 			GUID: GUID{
 				Value: link,
 			},
-			Categories: podcast.Categories,
+			Categories: categories,
 		}
 		if item.Description != "" && item.Link.RequestURI() != "" {
 			items = append(items, item)
@@ -121,8 +117,7 @@ func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error)
 		}
 		channel.ItunesImage = ItunesImage{URL: channel.Image.URL}
 	}
-	var error err
-	if channel.Items, err = extractItems(doc, channel.Image.URL); err != nil {
+	if channel.Items, err = extractItems(doc, channel.Image.URL, podcast.Categories); err != nil {
 		return channel, err
 	}
 	return channel, nil
@@ -139,7 +134,7 @@ func getItems(podcast Podcast, buf []byte) ([]Item, error) {
 	if err != nil {
 		fmt.Printf("Failed to parse image url %s", podcast.Image)
 	}
-	return getItems(doc, imgUrl)
+	return extractItems(doc, imgUrl, podcast.Categories)
 }
 
 // scrapeChannel builds a new channel with the items scraped from the podcast
@@ -179,3 +174,4 @@ func loadUrl(url string) ([]byte, error) {
 }
 
 type FeedBuilder func(Podcast, AtomLink) (RSS, error)
+type MasterFeedBuilder func([]Podcast, AtomLink) (RSS, error)

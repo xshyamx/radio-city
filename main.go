@@ -22,10 +22,11 @@ func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
 	return rss, err
 }
 
-func buildMasterFeed(podcasts []Podcasts, selfLink AtomLink) (RSS, error) {
-	imgUrl, err := parseURL("https://www.radiocity.in/images/menu-images/logo.png")
+func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
+	masterImage := "https://www.radiocity.in/images/menu-images/logo.png"
+	imgUrl, err := parseURL(masterImage)
 	if err != nil {
-		fmt.Printf("Failed to parse image url %s", podcast.Image)
+		fmt.Printf("Failed to parse image url %s", masterImage)
 	}
 	rss := NewRSS()
 
@@ -33,8 +34,8 @@ func buildMasterFeed(podcasts []Podcasts, selfLink AtomLink) (RSS, error) {
 		AtomLink:      selfLink,
 		Title:         "RadioCity Master Feed",
 		Link:          selfLink.URL,
-		PublishDate:   time.Now(),
-		LastBuildDate: time.Now(),
+		PublishDate:   XMLDate(time.Now()),
+		LastBuildDate: XMLDate(time.Now()),
 		Description:   "Generated master feed from a given set of podcasts",
 		Image: Image{
 			Link:  selfLink.URL,
@@ -45,18 +46,17 @@ func buildMasterFeed(podcasts []Podcasts, selfLink AtomLink) (RSS, error) {
 			URL: imgUrl,
 		},
 	}
-	var err error
-	for pod, _ := range podcasts {
-		pitems, err = scrapeItems(pod)
+	for _, pod := range podcasts {
+		pitems, err := scrapeItems(pod)
 		if err != nil {
 			return rss, err
 		}
-		rss.Channel.Items = append(rss.Channel.Items, pitems)
+		rss.Channel.Items = append(rss.Channel.Items, pitems...)
 	}
 	return rss, err
 }
 
-func MasterScrapeHandler(podcasts []Podcast, builder FeedBuilder) http.HandlerFunc {
+func MasterScrapeHandler(podcasts []Podcast, builder MasterFeedBuilder) http.HandlerFunc {
 	var rss RSS
 	var lastBuildDate XMLDate
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func MasterScrapeHandler(podcasts []Podcast, builder FeedBuilder) http.HandlerFu
 			}
 			selfLink := NewAtomLink(fmt.Sprintf("%s://%s%s", proto, r.Host, r.URL.Path))
 			var err error
-			rss, err = builder(podcast, selfLink)
+			rss, err = builder(podcasts, selfLink)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte("Failed to build RSS feed"))

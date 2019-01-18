@@ -97,7 +97,7 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 	out := make(chan Item)
 	errs := make(chan error)
 	done := make(chan bool)
-	doneCount, workerCount := 0, 3
+	doneCount, workerCount := 0, 20
 	for i := 0; i < workerCount; i++ {
 		go getEnclosure(in, out, errs, done)
 	}

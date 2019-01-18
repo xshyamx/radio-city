@@ -46,8 +46,8 @@ func getEnclosure(in <-chan Item, out chan<- Item, errs chan<- error, done chan<
 func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Item, error) {
 	var items []Item
 	logger := log.New(os.Stdout, "[scrape][item] ", 0)
+	IST, _ := time.LoadLocation("")
 	start := time.Now()
-	IST, _ := time.LoadLocation("Asia/Kolkata")
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
 		descStr := pi.AttrOr("data-podname", "")
 		link := strings.TrimSpace(pi.AttrOr("data-podcast", ""))

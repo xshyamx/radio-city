@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 )
 
@@ -31,6 +33,8 @@ var podcasts = []Podcast{
 }
 
 func buildFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
+	logger := log.New(os.Stderr, "[main][buildFeed ", 0)
+	start := time.Now()
 	rss := NewRSS()
 	masterImage := "https://www.radiocity.in/images/menu-images/logo.png"
 	imgUrl, err := parseURL(masterImage)
@@ -60,6 +64,7 @@ func buildFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
 		}
 		rss.Channel.Items = append(rss.Channel.Items, pitems...)
 	}
+	logger.Printf("Built master feed in %s", time.Since(start).String())
 	return rss, nil
 
 }

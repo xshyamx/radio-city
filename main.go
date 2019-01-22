@@ -23,7 +23,7 @@ func buildFeed(podcast Podcast, selfLink AtomLink) (RSS, error) {
 }
 
 func buildMasterFeed(podcasts []Podcast, selfLink AtomLink) (RSS, error) {
-	logger := log.New(os.Stdout, "[main] ", 0)
+	logger := log.New(os.Stderr, "[main] ", 0)
 	start := time.Now()
 	masterImage := "https://www.radiocity.in/images/menu-images/logo.png"
 	imgUrl, err := parseURL(masterImage)
@@ -214,7 +214,7 @@ func getPodcasts() ([]Podcast, error) {
 }
 
 func main() {
-	logger := log.New(os.Stdout, "[main] ", 0)
+	logger := log.New(os.Stderr, "[main] ", 0)
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	addr := ":" + os.Getenv("PORT")

@@ -19,7 +19,7 @@ import (
 )
 
 func getEnclosure(in <-chan Item, out chan<- Item, errs chan<- error, done chan<- bool) {
-	logger := log.New(os.Stdout, "[scrape][enclosure] ", 0)
+	logger := log.New(os.Stderr, "[scrape][enclosure] ", 0)
 	for item := range in {
 		start := time.Now()
 		res, err := http.Head(item.Link.String())
@@ -45,7 +45,7 @@ func getEnclosure(in <-chan Item, out chan<- Item, errs chan<- error, done chan<
 // extractItems extracts a list of items from a parsed document
 func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Item, error) {
 	var items []Item
-	logger := log.New(os.Stdout, "[scrape][item] ", 0)
+	logger := log.New(os.Stderr, "[scrape][item] ", 0)
 	IST, _ := time.LoadLocation("")
 	start := time.Now()
 	doc.Find(".podcast_button a").Each(func(i int, pi *goquery.Selection) {
@@ -97,7 +97,17 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 	out := make(chan Item)
 	errs := make(chan error)
 	done := make(chan bool)
-	doneCount, workerCount := 0, 20
+	workerCount, err := strconv.Atoi(os.Getenv("WC_COUNT"))
+	if err != nil {
+		workerCount = 20
+	}
+	if workerCount < 0 {
+		workerCount = 20
+	}
+	if workerCount > 1 {
+		logger.Printf("Using %d workers", workerCount)
+	}
+	doneCount := 0
 	for i := 0; i < workerCount; i++ {
 		go getEnclosure(in, out, errs, done)
 	}
@@ -133,7 +143,7 @@ func extractItems(doc *goquery.Document, imgUrl URL, categories []string) ([]Ite
 func getChannel(podcast Podcast, selfLink AtomLink, buf []byte) (Channel, error) {
 	channel := Channel{}
 	start := time.Now()
-	logger := log.New(os.Stdout, "[scrape][channel] ", 0)
+	logger := log.New(os.Stderr, "[scrape][channel] ", 0)
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return channel, err
@@ -191,7 +201,7 @@ func getItems(podcast Podcast, buf []byte) ([]Item, error) {
 // scrapeChannel builds a new channel with the items scraped from the podcast
 func scrapeChannel(podcast Podcast, selfLink AtomLink) (Channel, error) {
 	channel := Channel{}
-	logger := log.New(os.Stdout, "[scrape] ", 0)
+	logger := log.New(os.Stderr, "[scrape] ", 0)
 	start := time.Now()
 	buf, err := loadUrl(podcast.URL)
 	if err != nil {

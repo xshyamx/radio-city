@@ -2,6 +2,10 @@
 
 Generate podcast rss feeds by scraping RadioCity website
 
+## Configurations ##
+
+The number of worker goroutines is configured by setting the environment variable `WC_COUNT` the default value is 10
+
 ## Build & Run ##
 
 Install/update godep 
